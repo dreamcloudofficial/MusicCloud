@@ -8,7 +8,7 @@ from discord.ext import commands
 from pytube import YouTube
 from youtube_search import YoutubeSearch
 
-bot = commands.Bot(command_prefix = "=", intents = discord.Intents.all())
+bot = commands.Bot(command_prefix = "!", intents = discord.Intents.all())
 @bot.event
 async def on_ready():
     print("Bot is ready!")
@@ -41,7 +41,7 @@ async def play(ctx: commands.Context, *url: str):
         
         if validators.url(url):
             yt = YouTube(url)
-            song = yt.streams.filter(only_audio=True).first()
+            song = yt.streams.filter(only_audio = True).first()
 
             vc.play(discord.FFmpegPCMAudio(song.url, **FFMPEG_OPTIONS))
             await ctx.send(f"Playing {yt.title}")
@@ -54,7 +54,7 @@ async def play(ctx: commands.Context, *url: str):
             await ctx.send(f"Playing {search_yt.title}")
 
 @bot.command()
-async def stop(ctx: commands.Context):
+async def song(ctx: commands.Context, song_type: str=None):
     user = ctx.message.author
     voice_channel = user.voice.channel
 
@@ -74,7 +74,21 @@ async def stop(ctx: commands.Context):
         else:
             vc = await channel.connect()
         
-        vc.stop()
-        await ctx.send(f"Stopping song.")
+        if song_type == "pause":
+            vc.pause()
+            await ctx.send("Paused song.")
+        elif song_type == "resume":
+            vc.resume()
+            await ctx.send("Resumed song.")
+        elif song_type == "stop":
+            vc.stop()
+            await ctx.send("Stopped song.")
+        else:
+            await ctx.send(f"""
+                Commands:
+                {bot.command_prefix}song pause
+                {bot.command_prefix}song resume
+                {bot.command_prefix}song stop
+            """)
 
 bot.run(os.getenv("TOKEN"))
