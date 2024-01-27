@@ -1,94 +1,32 @@
+import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
 import discord
 import os
-import validators
 from discord.ext import commands
-from pytube import YouTube
-from youtube_search import YoutubeSearch
 
 bot = commands.Bot(command_prefix = "!", intents = discord.Intents.all())
 @bot.event
 async def on_ready():
     print("Bot is ready!")
 
-@bot.command()
-async def play(ctx: commands.Context, *url: str):
-    url = " ".join(url)
-    user = ctx.message.author
-    voice_channel = user.voice.channel
+class CloudHelp(commands.MinimalHelpCommand):
+    async def send_pages(self):
+        destination = self.get_destination()
+        for page in self.paginator.pages:
+            embed = discord.Embed(title = ":question: Help", description = page, color = 0xe82711)
+            await destination.send(embed = embed)
 
-    global voice_client
-    voice_client = ctx.guild.voice_client
+bot.help_command = CloudHelp()
 
-    global channel
-    channel = None
+cogfiles = [
+    f"cogs.{filename[:-3]}" for filename in os.listdir("./cogs/") if filename.endswith(".py")
+]
 
-    if not voice_client in bot.voice_clients:
-        channel = voice_channel
-    else:
-        channel = voice_client
+async def load_cogs():
+    for cogfile in cogfiles:
+        await bot.load_extension(cogfile)
 
-    if voice_channel != None:
-        global FFMPEG_OPTIONS
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-        
-        if voice_client in bot.voice_clients:
-            vc = channel
-        else:
-            vc = await channel.connect()
-        
-        if validators.url(url):
-            yt = YouTube(url)
-            song = yt.streams.filter(only_audio = True).first()
-
-            vc.play(discord.FFmpegPCMAudio(song.url, **FFMPEG_OPTIONS))
-            await ctx.send(f"Playing {yt.title}")
-        else:
-            results = YoutubeSearch(url, max_results = 1).to_dict()
-            search_yt = YouTube(f"https://youtube.com{results[0]['url_suffix']}")
-            song_search = search_yt.streams.filter(only_audio = True).first()
-
-            vc.play(discord.FFmpegPCMAudio(song_search.url, **FFMPEG_OPTIONS))
-            await ctx.send(f"Playing {search_yt.title}")
-
-@bot.command()
-async def song(ctx: commands.Context, song_type: str=None):
-    user = ctx.message.author
-    voice_channel = user.voice.channel
-
-    global voice_client
-    voice_client = ctx.guild.voice_client
-
-    channel = None
-
-    if not voice_client in bot.voice_clients:
-        channel = voice_channel
-    else:
-        channel = voice_client
-
-    if voice_channel != None:
-        if voice_client in bot.voice_clients:
-            vc = channel
-        else:
-            vc = await channel.connect()
-        
-        if song_type == "pause":
-            vc.pause()
-            await ctx.send("Paused song.")
-        elif song_type == "resume":
-            vc.resume()
-            await ctx.send("Resumed song.")
-        elif song_type == "stop":
-            vc.stop()
-            await ctx.send("Stopped song.")
-        else:
-            await ctx.send(f"""
-                Commands:
-                {bot.command_prefix}song pause
-                {bot.command_prefix}song resume
-                {bot.command_prefix}song stop
-            """)
-
+asyncio.run(load_cogs())
 bot.run(os.getenv("TOKEN"))
